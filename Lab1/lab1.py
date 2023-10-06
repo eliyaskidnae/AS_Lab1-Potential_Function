@@ -1,7 +1,11 @@
-# Input Data
-# Select Algorithm( 4-point , 8-point , Eculidian)  Switch Case
-# 
-# import necessary 
+########## Group-Members Name #############
+##                                       ##                             
+##  1. Abraha,Eliyas Kidanemmariam       ##
+##  2. Leaku, Goitom Abraha              ##
+##                                       ##
+## ########################################
+
+# import necessary package
 import PIL.Image as image
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
@@ -10,17 +14,17 @@ from math import sqrt
 
 
 print("Please Select Connectivity Type ")
-print("\n Enter 1 for 4-point Connectivity");
-print(" Enter 2 for 8-point Connectivity");
+print("\n Enter 1 to use 4-point Connectivity");
+print(" Enter 2 to use 8-point Connectivity");
 print(" Enter 3 to use Euclidean distance ");
 
-start = (10,10)
-goal = (90,70)
-Q = 5
+start = (8,31)
+goal = (139,38)
+Q = 3
 motions = []
 conn_type = 1 # default connectivivity type
 conn_type = input("")
-
+# Select Connectivity Type
 match conn_type:
     case '1': # 4-point connectivity
         motions = [(-1,0),(1,0),(0,-1),(0,1)]
@@ -31,32 +35,32 @@ match conn_type:
     case _: # default 4-point connectivity 
         motions = [(-1,0),(1,0),(0,-1),(0,1)]
         
-# Input 
-image = image.open('Lab1\Lab data-20230926\map0.png').convert('L')
+# Input an Image Here
+image = image.open('Lab1\Lab data-20230926\map2.png').convert('L')
 grid_map = np.array(image.getdata()).reshape(image.size[0], image.size[1])/255 # binarize the image
 grid_map[grid_map > 0.5] = 1 
 grid_map[grid_map <= 0.5] = 0 # Invert colors to make 0 -> free and 1 -> occupied 
 grid_map = (grid_map * -1) + 1 # Show grid map 
 
-# Usefull Functions Here :
-def is_onboard( position , arr ):
+# Defin All Usefull Functions Here :
+def is_onboard( position , map ):
     try:
-        arr[position] and (position[0] >= 0 and position[1] >= 0) #Also Assumes -ve Index as Out of boarder 
+        map[position] and (position[0] >= 0 and position[1] >= 0) #Also Assumes -ve Index as Out of boarder 
     except (ValueError, IndexError):
         return False
     else:
         return True   
-def is_not_obstacle( position ,arr):
-    if(arr[position] == 1):
+def is_not_obstacle( position , map): # Checks a Position is obstacle or Not
+    if(map[position] == 1):
         return False
     return True
-def isValid( position , map):
+def isValid( position , map): 
     if is_onboard(position , map ) and map[position] != 1 and  map[position] == 0   :
         return True
     return False
-def getDistance(motion):
+def getDistance(motion): # returns a distance based the connectivity we select 
     return 1 if conn_type==2 else sqrt(motion[0]**2 + motion[1]**2)
-def index_obstacles(map):
+def index_obstacles(map): # returns list of index in obstacle position
     rows , cols = map.shape
     list_obstacles = []
     for i in range(rows):
@@ -64,14 +68,14 @@ def index_obstacles(map):
             if(map[i][j] == 1):
                 list_obstacles.append((i,j))
     return list_obstacles
-def getX(path):
-    x=[] 
+def getX(path):# returns the row part of two dimensional array 
+    x=[]       # we use this to draw path in a map
     for p in path:
         i,j = p
         x.append(i) 
     return x
-def getY(path):
-    y=[] 
+def getY(path):  # returns the colomun part of two dimensional array 
+    y=[]         # we use this to draw path in a map
     for p in path:
         i,j = p
         y.append(j)
@@ -113,50 +117,51 @@ def wavefront_planner(map):
 wave_front_map = wavefront_planner(grid_map)
 
 # Attraction Function  and Normalization process
-    # print(new_map)
-    #  Replace the obstacles value by the maximum value in the Attraction function + 1 and 
-    #  then, normalize the function between 0 (for the goal) and 1 (for the obstacles).
+#     1. Replace the obstacles value by the maximum value in the Attraction function + 1 and 
+#     2. then, normalize the function between 0 (for the goal) and 1 (for the obstacles). 
     
 max_val = np.max(wave_front_map)
 attraction_fun = np.where( wave_front_map == 1 , max_val + 1 , wave_front_map.copy())
-attraction_fun = np.where( attraction_fun == 2 , 0 ,attraction_fun ) # change the goal to 0 
-attraction_fun = np.array( attraction_fun)/(max_val+1)
+attraction_fun = np.where( attraction_fun == 2 , 0 ,attraction_fun ) # change the goal position to 0 value
+attraction_fun = np.array( attraction_fun)/(max_val+1) #  divide by the max value 
 
-
-# Path Finder Algorithm Here:
+# Path Finder Algorithm Here: returns the list path , distance and 
+#    1. By applaying possible motion finds the best path 
+#    2. if it is not reachable it returns a list upto the local minimum and boolean value find_goal= False
 def find_path(start,goal,map):
     path = [start]   
+    path_dist = 0
+    find_goal = True # If we traped to local mini find_goal flag become false 
     mini_position = start  
     i = 0   
     while goal != path[-1]: 
         i = i +1 
         np.random.shuffle(motions) 
         for m in motions:
+            distance = getDistance(m)
             current_position = path[-1]
             new_position = (current_position[0] + m[0], current_position[1] + m[1])       
             if(is_onboard(new_position,map) and is_not_obstacle(new_position,map) and map[new_position] < map[mini_position] ):
-                print(current_position , new_position)
                 mini_position = new_position
-                
-        
-        print(path)
-        print('\n')
-        print(mini_position)
-        if(mini_position == current_position):
-            print("Local Minimum")
-            return path
+
+        if(mini_position == current_position): # if we visit a cell for the second time it is local min 
+            find_goal = False                  # so we return the path upto local min and find_goal= False
+            print("Local Minimum" , mini_position)
+            return (path,path_dist,find_goal)
             # raise Exception("The Position" , current_position , "is Local Minimum ")
-        else: path.append(mini_position)
-    print(path)
-    return path
+        else: 
+            path.append(mini_position)
+            path_dist += distance
+    
+    return (path,path_dist,find_goal)
 
+      
+path_attr_func,pathdis_attr_func,find_goal= find_path(start,goal,attraction_fun)  # path for attraction function call 
 
-path_attr_func = find_path(start,goal,attraction_fun)
-# path plotting helper here
 # Bursh Fire Algorithm Here:
-def bushfire_planner(map):
-    bushfire_map =map.copy()
-    queue = index_obstacles(bushfire_map) # get all index of obstacles 
+def brushfire_planner(map):
+    brushfire_map =map.copy()
+    queue = index_obstacles(brushfire_map) # get all index of obstacles 
     value = 1
     i=0
     while queue: 
@@ -165,25 +170,24 @@ def bushfire_planner(map):
         for p in queue:
             for m in motions:       
                 new_position = ( p[0] + m[0], p[1] + m[1])
-                if isValid(new_position , bushfire_map):
-                    bushfire_map[new_position] = value 
+                if isValid(new_position , brushfire_map):
+                    brushfire_map[new_position] = value 
                     new_queue.append(new_position)
                         
             queue = new_queue
             i+=1
 
-    return bushfire_map;
+    return brushfire_map;
 
-bushfire_map = bushfire_planner(grid_map)
-print("length " ,bushfire_map.max() )
+brushfire_map = brushfire_planner(grid_map)
 # Normalized BurshFire map
 
-normalized_bushfire_map = np.where((bushfire_map<=Q) & (bushfire_map>1), 4*((1/bushfire_map)-(1/Q))**2, bushfire_map)
-normalized_bushfire_map = np.where( normalized_bushfire_map >Q , 0, normalized_bushfire_map)
+normalized_brushfire_map = np.where((brushfire_map<=Q) & (brushfire_map>1), 4*((1/brushfire_map)-(1/Q))**2, brushfire_map)
+normalized_brushfire_map = np.where( normalized_brushfire_map >Q , 0, normalized_brushfire_map)
 
-# repulsive_fun = np.where((bushfire_map<=Q) & (bushfire_map>1), 4*(1/(bushfire_map)-(1/Q))*2, bushfire_map.copy())
-# repulsive_fun = np.where( bushfire_map > Q , 0 , repulsive_fun)
-repulsive_fun = normalized_bushfire_map
+# repulsive_fun = np.where((brushfire_map<=Q) & (brushfire_map>1), 4*(1/(brushfire_map)-(1/Q))*2, brushfire_map.copy())
+# repulsive_fun = np.where( brushfire_map > Q , 0 , repulsive_fun)
+repulsive_fun = normalized_brushfire_map
 
 ## Potential Function 
 potential_map = np.add(repulsive_fun , attraction_fun)
@@ -193,11 +197,21 @@ potential_map = np.divide(potential_map,2) # normalizing the potential function 
 # print("\n")
 # print(potential_map[61:70,84:100])
 
-
-path_potential_func = find_path(start,goal,potential_map)
-
+path_potential_func,pathdis_pot_func,find_goal= find_path(start,goal,potential_map) # Potential function path function call
 
 
+print("\nAttraction Function => Path Distance: {} , Number of Paths:{} ".format(pathdis_attr_func,len(path_attr_func)))
+if(find_goal==False):
+    print("Using Potential Function We traped to Local Mini at :{}".format(path_attr_func[-1]))
+else:
+    print(" Potential Function => Path Distance: {} ,  Number of Paths:{} \n".format(pathdis_pot_func,len(path_potential_func)))
+
+print("Attraction Function Path Is : {}".format(path_attr_func))
+print("Potentail Function Path Is : {}\n".format(path_potential_func))
+
+
+
+# All Plotes Here 
 fig, axs = plt.subplots(2, 4 ,figsize=(15, 15))
 plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.1)
 a= axs[0, 0].matshow(grid_map)
@@ -213,9 +227,9 @@ axs[0, 3].matshow(attraction_fun)
 axs[0, 3].plot(getY(path_attr_func.copy()),getX(path_attr_func.copy()),color='red')
 axs[0, 3].set_title('Path of Attraction Function!')
 
-axs[1, 0].set_title('busfire Function')
-axs[1, 0].matshow(bushfire_map)
-
+axs[1, 0].set_title('Brushfire Function')
+axs[1, 0].matshow(brushfire_map)
+fig.colorbar(axs[1, 0].matshow(brushfire_map))
 axs[1, 1].set_title('Repulsive Function')
 axs[1, 1].matshow(repulsive_fun)
 
@@ -224,6 +238,7 @@ axs[1, 2].matshow(potential_map)
 
 axs[1, 3].set_title('Path of Potential Function')
 axs[1, 3].matshow(potential_map)
+
 axs[1, 3].plot(getY(path_potential_func),getX(path_potential_func),color='red')
 axs[1,3].scatter(start[1], start[0], s=100, c='red', marker='.')
 axs[1,3].scatter(goal[1], goal[0], s=100, c='green', marker='.')
